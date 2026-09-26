@@ -9,11 +9,49 @@ dalam sesi** dan dibuktikan lewat commit bertanggal sebelum 20:00.
 pip install -r requirements.txt
 python -m pipeline.profile --topic t3 --slice k1      # D1: profil data sebelum transformasi
 python -m pipeline.load    --topic t3 --slice k1 --twice   # D3: load 2x, cek row count
-python tests/run_tests.py  --topic t3                 # D4: 6 quality test, PASS/FAIL + severity
+python tests/run_tests.py  --topic t2 --slice k8      # D4 selesai: 6 quality test, PASS/FAIL + severity
+python checkpoint.py verify --sesi 5 --topic t2 --slice k8 # DoD Tugas Sesi 5 — D4 test kualitas (t2/k8)
 python checkpoint.py verify --sesi 8                  # DoD UTS (design checkpoint)
 ```
 
 Semua perintah **offline** — data seed sudah ada di `data/raw/`, tidak ada unduhan saat lab.
+
+## D4 individu selesai — T2/k8
+
+Nama: **Titanio Yudista** · NIM: **24120500031**.
+
+Slice k8 mencakup outlet A+B+C selama tahun 2025. Enam test mewakili completeness,
+uniqueness, validity, consistency, timeliness, dan accuracy; masing-masing memiliki
+severity dan satu baris alasan klasifikasi.
+
+Berkas hasil dan bukti:
+
+- [Laporan PDF D4](docs/D4_t2_k8_kualitas_data.pdf) — dua halaman, di bawah batas 10 MB, termasuk gambar bukti.
+- [Laporan Markdown](docs/D4_t2_k8.md) — log, tafsir FAIL, grain, serta paragraf keputusan blocking/warning sepanjang 72 kata.
+- [Definisi enam test](tests/test_definitions.yml).
+- [Screenshot runner](images/run_test.png) dan [screenshot checkpoint](images/checkpoint.png).
+
+Jalankan ulang setelah memasang dependensi:
+
+```bash
+python tests/run_tests.py --topic t2 --slice k8
+python checkpoint.py verify --sesi 5 --topic t2 --slice k8
+```
+
+Runner tanpa argumen juga memakai T2/k8. YAML saat ini berisi enam test khusus slice
+tersebut; topik atau slice lain memerlukan definisi test yang sesuai.
+
+Hasil pada seed: **lima FAIL nyata dan satu PASS**, dengan empat FAIL berstatus
+blocking dan satu FAIL berstatus warning. Tidak ada error SQL atau hasil yang berbeda
+dari `expected`; checkpoint D4 memenuhi **6/6 syarat**. Runner menghasilkan **exit code
+1** karena ada FAIL blocking, termasuk ketika FAIL tersebut memang diharapkan pada
+seed. `expected: fail` mencatat cacat seed dan tidak membatalkan klasifikasi blocking.
+Exit code 1 juga digunakan untuk error eksekusi atau hasil yang berbeda dari `expected`.
+
+Test membaca data tanpa mengubah grain sumber. Timeliness menggunakan cakupan harian
+pekan terakhir 2025 sebagai proksi karena seed tidak menyediakan timestamp ingest.
+Status selesai di bagian ini berlaku untuk tugas D4 individu; artefak D3, desain UTS,
+dan tugas UAS memiliki checkpoint tersendiri.
 
 ## Tiga topik (dataset dari dosen, bukan pilihan sendiri)
 
@@ -49,7 +87,7 @@ Semua perintah **offline** — data seed sudah ada di `data/raw/`, tidak ada und
 ## Aturan yang dinilai
 
 - **Idempotensi adalah syarat, bukan bonus.** `--twice` harus mencetak row count yang sama. Kalau tim mau membuktikan bahwa `INSERT` polos menggandakan baris, jalankan `--strategy insert_only` — itu contoh yang sengaja salah.
-- **Test wajib punya severity.** `blocking` menghentikan load; `warning` hanya memberi tahu. Test tanpa severity diabaikan.
+- **Test wajib punya severity.** `blocking` berarti data tidak boleh masuk warehouse; `warning` memberi peringatan. Runner D4 menghasilkan exit code 1 saat ada FAIL blocking. Definisi tanpa severity valid (`blocking`/`warning`) ditolak. Runner ini memverifikasi data sumber; penerapan gate pada loader merupakan pekerjaan pipeline tersendiri.
 - **`WHERE 1=1` bukan test.** Test harus gagal ketika datanya salah, bukan ketika tabel kosong.
 - **Desain dulu (UTS), bangun kemudian (UAS).** `checkpoint.py verify --sesi 8` untuk desain; `--sesi 4|5` untuk artefak build.
 
