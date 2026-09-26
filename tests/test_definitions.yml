@@ -48,7 +48,8 @@ tests:
          OR (try_cast(i.qty AS INTEGER) <= 0 AND NOT EXISTS
              (SELECT 1 FROM raw_transactions t
               WHERE t.transaction_id = i.transaction_id
-                AND upper(trim(t.status)) = 'REFUND'))
+              GROUP BY t.transaction_id
+              HAVING bool_and(coalesce(upper(trim(t.status)) = 'REFUND', false))))
 
   - name: paid_status_casing_inconsistent
     topic: t2
@@ -63,8 +64,9 @@ tests:
       SELECT count(*) FROM raw_transactions
       WHERE upper(trim(status)) = 'PAID' AND status <> 'PAID'
 
-  # Proksi timeliness: seed tidak menyediakan timestamp kedatangan/ingest.
-  - name: missing_day_in_final_reporting_week
+  # Freshness historis; asumsi laporan tutup 2025-12-31 membutuhkan data hari itu.
+  # Tanggal transaksi tercatat dipakai sebagai proksi, bukan timestamp ingest.
+  - name: outlet_data_stale_at_report_cutoff
     topic: t2
     slice: k8
     dimension: timeliness
@@ -72,15 +74,20 @@ tests:
     scope: source
     expected: pass
     perkiraan_baris: 0
-    justifikasi: Hari kosong dalam pekan terakhir laporan 2025 perlu direkonsiliasi sebelum keputusan penutupan tahun; blokir.
+    justifikasi: Data outlet yang belum mencapai tanggal tutup laporan dapat membuat perbandingan omzet tahunan salah, jadi pemuatan diblokir.
     sql: >-
-      SELECT count(*)
-      FROM generate_series(DATE '2025-12-25', DATE '2025-12-31',
-                           INTERVAL 1 DAY) AS expected_day(report_date)
-      WHERE NOT EXISTS
-        (SELECT 1 FROM raw_transactions t
-         WHERE try_cast(substr(t.tanggal_waktu, 1, 10) AS DATE)
-               = expected_day.report_date)
+      WITH expected_outlets(outlet_id) AS
+        (VALUES ('OUT-A'), ('OUT-B'), ('OUT-C')),
+      latest AS
+        (SELECT outlet_id,
+                max(try_cast(substr(tanggal_waktu, 1, 10) AS DATE)) AS latest_date
+         FROM raw_transactions
+         WHERE try_cast(substr(tanggal_waktu, 1, 10) AS DATE)
+               BETWEEN DATE '2025-01-01' AND DATE '2025-12-31'
+         GROUP BY outlet_id)
+      SELECT count(*) FROM expected_outlets e
+      LEFT JOIN latest l USING (outlet_id)
+      WHERE l.latest_date IS NULL OR l.latest_date < DATE '2025-12-31'
 
   - name: paid_total_disagrees_with_valid_items
     topic: t2

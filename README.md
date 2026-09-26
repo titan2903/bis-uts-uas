@@ -48,8 +48,11 @@ dari `expected`; checkpoint D4 memenuhi **6/6 syarat**. Runner menghasilkan **ex
 seed. `expected: fail` mencatat cacat seed dan tidak membatalkan klasifikasi blocking.
 Exit code 1 juga digunakan untuk error eksekusi atau hasil yang berbeda dari `expected`.
 
-Test membaca data tanpa mengubah grain sumber. Timeliness menggunakan cakupan harian
-pekan terakhir 2025 sebagai proksi karena seed tidak menyediakan timestamp ingest.
+Test membaca data tanpa mengubah grain sumber. Timeliness menggunakan freshness per outlet terhadap tanggal tutup laporan
+31 Desember 2025, dengan tanggal transaksi tercatat sebagai proksi. Batas ini merupakan
+asumsi laporan tahunan; keterlambatan ingest tidak dapat diukur tanpa timestamp ingest.
+Screenshot runner merekam versi awal test timeliness; log terbaru di laporan memakai
+freshness per outlet dengan hitungan yang tetap sama.
 Status selesai di bagian ini berlaku untuk tugas D4 individu; artefak D3, desain UTS,
 dan tugas UAS memiliki checkpoint tersendiri.
 
